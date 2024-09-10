@@ -10,6 +10,8 @@ import (
 )
 
 func main() {
+	//cleanup expired token
+	utils.StartCleanupRoutine()
 
 	// Create a new Fiber app with the custom validator
 	app := fiber.New(fiber.Config{
