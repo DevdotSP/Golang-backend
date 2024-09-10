@@ -8,7 +8,6 @@ import (
 )
 
 // AuthMiddleware checks for a valid JWT token
-// AuthMiddleware checks for a valid JWT token
 func AuthMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		// Get the token from the Authorization header

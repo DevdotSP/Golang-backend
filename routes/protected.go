@@ -13,7 +13,7 @@ func ProtectedRoutes(app *fiber.App, db *gorm.DB) {
 	protected := app.Group("/api/protected",middleware.AuthMiddleware(),middleware.HeadersMiddleware())
 
 	protected.Get("/single-data", controller.GetBranch(db))     // Get a single branch
-	protected.Get("/all-data", controller.GetAllBranchData(db)) // Get all branches
+	protected.Get("/all-data", controller.GetAllBranches(db)) // Get all branches
 	protected.Post("/logout", controller.Logout())
 	protected.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"message": "Welcome to the protected route!"})

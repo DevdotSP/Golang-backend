@@ -16,41 +16,60 @@ func Login(db *gorm.DB) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var userAuth model.UserLogin
 
-		// Use BodyParser to bind the request body into the User model
-		if err := c.Bind().Body(&userAuth); err != nil {
-			log.Printf("Binding error: %s", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request format"})
+		// Check if the body is empty
+		body := c.Body()
+		if len(body) == 0 {
+			err := custom.NewHttpError("Request body is empty", fiber.StatusBadRequest)
+			log.Printf("Validation errors: %+v", err)
+			return custom.SendErrorResponse(c, err)
 		}
 
-		// Use custom validation utility
-		if err := utils.ValidateAndRespond(c, &userAuth); err != nil {
-			return err // This already sends the error response
+		// Validate the userAuth struct
+		if err := c.Bind().Body(&userAuth); err != nil {
+			log.Printf("Validation errors: %+v", err)
+			return custom.SendErrorResponse(c, custom.NewHttpError(err.Error(), fiber.StatusBadRequest))
 		}
+
+		// Validate the userAuth struct
+		if err := utils.Validator.Validate(&userAuth); err != nil {
+			log.Printf("Validation errors: %+v", err)
+			return custom.SendErrorResponse(c, custom.NewHttpError(err.Error(), fiber.StatusBadRequest))
+		}
+
+		// Log the received request body
+		log.Printf("Received request body: %s", body)
+
+		log.Printf("Bound userAuth: %+v", userAuth)
 
 		var user model.User
 		if err := db.Where("email = ?", userAuth.Email).First(&user).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
-				return custom.SendErrorResponse(c, fiber.StatusUnauthorized, "Invalid email or password")
+				err := custom.NewHttpError("Invalid invalid email or password", fiber.StatusBadRequest)
+				return custom.SendErrorResponse(c, err)
 			}
-			return custom.SendErrorResponse(c, fiber.StatusInternalServerError, "Could not find user")
+			err := custom.NewHttpError("Could not find user", fiber.StatusInternalServerError)
+			return custom.SendErrorResponse(c, err)
 		}
 
 		// Compare the provided password with the hashed password
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(userAuth.Password)); err != nil {
-			return custom.SendErrorResponse(c, fiber.StatusUnauthorized, "Invalid email or password")
+			err := custom.NewHttpError("Invalid invalid email or password", fiber.StatusBadRequest)
+			return custom.SendErrorResponse(c, err)
 		}
 
 		// Check if the current token is still active
 		if existingToken, err := custom.ExtractToken(c); err == nil {
 			if _, err := utils.ValidateToken(existingToken); err == nil {
-				return custom.SendErrorResponse(c, fiber.StatusForbidden, "A valid token is already active.")
+				err := custom.NewHttpError("A valid token is already active", fiber.StatusForbidden)
+				return custom.SendErrorResponse(c, err)
 			}
 		}
 
 		// Generate a new JWT token
 		token, err := utils.GenerateJWT(user.ID, "")
 		if err != nil {
-			return custom.SendErrorResponse(c, fiber.StatusInternalServerError, "Could not generate token")
+			err := custom.NewHttpError("Could not generate token", fiber.StatusInternalServerError)
+			return custom.SendErrorResponse(c, err)
 		}
 
 		// Log the generated token for debugging
@@ -70,12 +89,14 @@ func Logout() fiber.Handler {
 		// Get the token from the Authorization header
 		jwtToken, err := custom.ExtractToken(c)
 		if err != nil {
-			return custom.SendErrorResponse(c, fiber.StatusInternalServerError, "Could not generate token")
+			err := custom.NewHttpError("Could not extract token", fiber.StatusInternalServerError)
+			return custom.SendErrorResponse(c, err)
 		}
 
 		// Delete the token from active tokens
 		if err := utils.DeleteToken(jwtToken); err != nil {
-			return custom.SendErrorResponse(c, fiber.StatusUnauthorized, err.Error())
+			err := custom.NewHttpError("no token found", fiber.StatusInternalServerError)
+			return custom.SendErrorResponse(c, err)
 		}
 
 		// Log the action for debugging

@@ -15,10 +15,10 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	personGroup := app.Group("/api/person", middleware.HeadersMiddleware())
 	{
 
-		personGroup.Post("/", controller.CreatePerson(db))
+		personGroup.Post("/", controller.RegisterUser(db))
 		personGroup.Get("/", controller.GetAllPersons(db))
-		personGroup.Get("/excel", controller.AllPersonExcel(db))
-		personGroup.Get("/:id", controller.GetPerson(db))
+		personGroup.Get("/excel", controller.ExportPersons(db))
+		personGroup.Get("/:id", controller.GetPersonByID(db))
 		personGroup.Delete("/:id", controller.DeletePerson(db))
 		personGroup.Post("/login", controller.Login(db))
 		personGroup.Post("/logout", controller.Logout())
@@ -27,9 +27,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// Group routes for branches under /api/branch
 	branchGroup := app.Group("/api/branch")
 	{
-		branchGroup.Get("/", controller.GetBranch(db))            // Get all branches
-		branchGroup.Get("/info", controller.GetAllBranchData(db)) // Get all branches
-
+		branchGroup.Get("/", controller.GetBranch(db))
+		branchGroup.Post("/", controller.CreateBranch(db))          
+		branchGroup.Get("/info", controller.GetAllBranches(db)) 
 	}
 
 }
