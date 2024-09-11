@@ -16,6 +16,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	{
 
 		personGroup.Post("/", controller.RegisterUser(db))
+		personGroup.Get("/verify", controller.VerifyEmail(db))
 		personGroup.Get("/", controller.GetAllPersons(db))
 		personGroup.Get("/excel", controller.ExportPersons(db))
 		personGroup.Get("/:id", controller.GetPersonByID(db))
@@ -28,8 +29,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	branchGroup := app.Group("/api/branch")
 	{
 		branchGroup.Get("/", controller.GetBranch(db))
-		branchGroup.Post("/", controller.CreateBranch(db))          
-		branchGroup.Get("/info", controller.GetAllBranches(db)) 
+		branchGroup.Post("/", controller.CreateBranch(db))
+		branchGroup.Get("/info", controller.GetAllBranches(db))
 	}
 
 }

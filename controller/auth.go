@@ -72,9 +72,6 @@ func Login(db *gorm.DB) fiber.Handler {
 			return custom.SendErrorResponse(c, err)
 		}
 
-		// Log the generated token for debugging
-		log.Printf("Generated token for user ID %d: %s", user.ID, token)
-
 		// Return the generated token to the user
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"message": "Login successful",

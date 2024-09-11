@@ -2,14 +2,23 @@ package main
 
 import (
 	"backend/database"
+
 	"backend/routes"
 	"backend/utils"
+
 	"log"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	//cleanup expired token
 	utils.StartCleanupRoutine()
 
@@ -21,7 +30,7 @@ func main() {
 	// Initialize the database connection
 	db := database.InitDB()
 
-	// // Perform auto migration
+	// Perform auto migration
 	// db.AutoMigrate(
 	// 	&model.User{},
 	// 	&model.AccountDetail{},
