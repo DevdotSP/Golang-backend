@@ -82,7 +82,7 @@ func GenerateJWT(userID uint, currentToken string) (string, error) {
 	}
 
 	// Store the new token in the active tokens map with its expiration time
-	activeTokens.Store(signedToken, TokenInfo{Expiration: time.Now().Add(time.Second * 60)})
+	activeTokens.Store(signedToken, TokenInfo{Expiration: time.Now().Add(time.Hour * 24)})
 
 	return signedToken, nil
 }

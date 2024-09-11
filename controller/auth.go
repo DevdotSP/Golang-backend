@@ -44,7 +44,7 @@ func Login(db *gorm.DB) fiber.Handler {
 		var user model.User
 		if err := db.Where("email = ?", userAuth.Email).First(&user).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
-				err := custom.NewHttpError("Invalid invalid email or password", fiber.StatusBadRequest)
+				err := custom.NewHttpError("Invalid invalid email", fiber.StatusBadRequest)
 				return custom.SendErrorResponse(c, err)
 			}
 			err := custom.NewHttpError("Could not find user", fiber.StatusInternalServerError)
@@ -53,7 +53,7 @@ func Login(db *gorm.DB) fiber.Handler {
 
 		// Compare the provided password with the hashed password
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(userAuth.Password)); err != nil {
-			err := custom.NewHttpError("Invalid invalid email or password", fiber.StatusBadRequest)
+			err := custom.NewHttpError("Invalid password", fiber.StatusBadRequest)
 			return custom.SendErrorResponse(c, err)
 		}
 
