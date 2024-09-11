@@ -3,6 +3,7 @@ package generic
 import (
 	"backend/custom"
 	"log"
+	"reflect"
 	"strconv"
 
 	"github.com/gofiber/fiber/v3"
@@ -10,22 +11,47 @@ import (
 	"gorm.io/gorm"
 )
 
-// Create a generic function for creating a resource
-func CreateResource[T any](db *gorm.DB, input *T) fiber.Handler {
+// CreateResource creates a resource and can optionally preload related models
+func CreateResource[T any](db *gorm.DB, input *T, relatedModels ...interface{}) fiber.Handler {
 	return func(c fiber.Ctx) error {
+		// Bind the request body to the main input model
 		if err := c.Bind().Body(input); err != nil {
-			log.Printf("Validation errors: %+v", err)
+			log.Printf("Error parsing body: %+v", err)
 			return custom.SendErrorResponse(c, custom.NewHttpError(err.Error(), fiber.StatusBadRequest))
 		}
 
+		// Create the main resource
 		if err := db.Create(input).Error; err != nil {
-			err := custom.NewHttpError("Could not create resource", fiber.StatusInternalServerError)
-			return custom.SendErrorResponse(c, err)
+			return custom.SendErrorResponse(c, custom.NewHttpError("Could not create resource", fiber.StatusInternalServerError))
+		}
+
+		// Extract the UserID from the input using reflect
+		val := reflect.ValueOf(input).Elem() // Dereference the pointer to get the value
+		idField := val.FieldByName("ID")
+		if !idField.IsValid() {
+			return custom.SendErrorResponse(c, custom.NewHttpError("ID field not found in resource", fiber.StatusInternalServerError))
+		}
+		userID := idField.Interface().(uint) // Assuming ID is of type uint
+
+		// Iterate over related models and create them if they are not nil
+		for _, relatedModel := range relatedModels {
+			if relatedModel != nil {
+				// Use reflection to set the UserID for related models
+				relatedVal := reflect.ValueOf(relatedModel).Elem() // Dereference the pointer to get the value
+				userIDField := relatedVal.FieldByName("UserID")
+				if userIDField.IsValid() && userIDField.CanSet() {
+					userIDField.SetUint(uint64(userID)) // Set the UserID
+				}
+
+				// Create the related resource
+				if err := db.Create(relatedModel).Error; err != nil {
+					return custom.SendErrorResponse(c, custom.NewHttpError("Could not create related resource", fiber.StatusInternalServerError))
+				}
+			}
 		}
 
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"message": "Resource created successfully",
-			"data":    input,
 		})
 	}
 }
@@ -88,7 +114,20 @@ func UpdateResource[T any](db *gorm.DB, input *T) fiber.Handler {
 			return custom.SendErrorResponse(c, custom.NewHttpError("Invalid ID", fiber.StatusBadRequest))
 		}
 
-		if err := db.Model(&input).Where("id = ?", resourceID).Updates(input).Error; err != nil {
+		// Parse request body into the input model
+		if err := c.Bind().Body(input); err != nil {
+			log.Println("Error parsing body:", err)
+			return custom.SendErrorResponse(c, custom.NewHttpError("Invalid request body", fiber.StatusBadRequest))
+		}
+
+		// Check if the user exists before updating
+		var existingUser T
+		if err := db.First(&existingUser, resourceID).Error; err != nil {
+			return custom.SendErrorResponse(c, custom.NewHttpError("Resource not found", fiber.StatusNotFound))
+		}
+
+		// Update only the fields present in the input struct
+		if err := db.Model(&existingUser).Where("id = ?", resourceID).Updates(input).Error; err != nil {
 			return custom.SendErrorResponse(c, custom.NewHttpError("Could not update resource", fiber.StatusInternalServerError))
 		}
 
@@ -102,15 +141,22 @@ func UpdateResource[T any](db *gorm.DB, input *T) fiber.Handler {
 func DeleteResource[T any](db *gorm.DB, relatedModels ...interface{}) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id := c.Params("id")
-		resourceID, err := custom.ParseID(id)
+		resourceID, err := custom.ParseID(id) // Assuming ParseID handles ID parsing correctly
 		if err != nil {
 			return custom.SendErrorResponse(c, custom.NewHttpError("Invalid ID", fiber.StatusBadRequest))
 		}
 
 		// Handle cascading delete of related models if provided
 		for _, relatedModel := range relatedModels {
-			if err := db.Where("user_id = ?", resourceID).Delete(relatedModel).Error; err != nil {
-				return custom.SendErrorResponse(c, custom.NewHttpError("Could not delete related records", fiber.StatusInternalServerError))
+			if relatedModel != nil {
+				// Use reflection to get the model's type
+				modelType := reflect.TypeOf(relatedModel).Elem()
+				if modelType.Kind() == reflect.Struct {
+					// Perform deletion using the model type
+					if err := db.Where("user_id = ?", resourceID).Delete(relatedModel).Error; err != nil {
+						return custom.SendErrorResponse(c, custom.NewHttpError("Could not delete related records", fiber.StatusInternalServerError))
+					}
+				}
 			}
 		}
 

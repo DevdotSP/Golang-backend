@@ -8,6 +8,12 @@ import (
 	"gorm.io/gorm"
 )
 
+func CreatePerson(db *gorm.DB) fiber.Handler {
+	var user model.User
+	var account_detail model.AccountDetail
+	var history model.History
+	return generic.CreateResource[model.User](db, &user, &account_detail, &history)
+}
 
 // GetAllPersons uses the generic GetAllResources function for retrieving all users
 func GetAllPersons(db *gorm.DB) fiber.Handler {

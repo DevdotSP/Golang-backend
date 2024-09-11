@@ -13,7 +13,7 @@ func GetBranch(db *gorm.DB) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		// Define a slice to hold the results
 		var results []struct {
-			BranchCode string  `json:"branch_code"`
+			BranchCode string `json:"branch_code"`
 			BranchName string `json:"branch_name"`
 		}
 
@@ -37,5 +37,10 @@ func GetAllBranches(db *gorm.DB) fiber.Handler {
 // CreateBranch uses the generic CreateResource function to create a Branch
 func CreateBranch(db *gorm.DB) fiber.Handler {
 	var branch model.Branch
-	return generic.CreateResource(db, &branch)
+	return generic.CreateResource[model.Branch](db, &branch)
+}
+
+// DeleteBranch deletes a branch without related models
+func DeleteBranch(db *gorm.DB) fiber.Handler {
+	return generic.DeleteResource[model.Branch](db) // No related models provided
 }
